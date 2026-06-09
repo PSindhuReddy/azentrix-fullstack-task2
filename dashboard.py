@@ -102,6 +102,59 @@ st.line_chart(q5.set_index("year")["total_population_millions"])
 st.dataframe(q5, width='stretch')
 
 st.divider()
+
+# ── CUSTOM QUERY RUNNER ────────────────────────
+st.subheader("🔍 Custom SQL Query Runner")
+st.markdown("Write your own SQL query and see the results instantly!")
+
+# Show available tables
+st.info("""
+**Available tables:**
+- `read_parquet('transformed/gdp_clean.parquet')` → GDP data
+- `read_parquet('transformed/population_clean.parquet')` → Population data
+""")
+
+# Example queries for user
+st.markdown("**Example queries you can try:**")
+st.code("""
+-- Top 5 smallest economies
+SELECT country_name, gdp_trillion 
+FROM read_parquet('transformed/gdp_clean.parquet') 
+ORDER BY gdp_trillion ASC LIMIT 5
+
+-- Population of India over years
+SELECT year, population_millions 
+FROM read_parquet('transformed/population_clean.parquet') 
+WHERE country_name = 'India'
+ORDER BY year
+""")
+
+# Text box for user to type query
+user_query = st.text_area(
+    "Type your SQL query here:",
+    height=150,
+    placeholder="SELECT * FROM read_parquet('transformed/gdp_clean.parquet') LIMIT 10"
+)
+
+# Run button
+if st.button("▶️ Run Query"):
+    if user_query.strip() == "":
+        st.warning("Please type a query first!")
+    else:
+        try:
+            result = conn.execute(user_query).df()
+            st.success(f"✅ Query returned {len(result)} rows")
+            st.dataframe(result, width='stretch')
+
+            # Show chart if numeric columns exist
+            numeric_cols = result.select_dtypes(include="number").columns.tolist()
+            if len(numeric_cols) > 0 and len(result) > 1:
+                st.bar_chart(result.set_index(result.columns[0])[numeric_cols[0]])
+
+        except Exception as e:
+            st.error(f"❌ Query failed: {str(e)}")
+
+st.divider()
 st.markdown("Built with ❤️ using Python, DuckDB, and Streamlit")
 
 conn.close()
